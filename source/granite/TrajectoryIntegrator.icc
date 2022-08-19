@@ -1,0 +1,149 @@
+#include <cuda.h>
+
+#include "granite/TrajectoryIntegrator.hpp" // only for ide
+
+#ifdef __CUDACC__
+
+__device__ __forceinline__ bool granite::out_of_box(const SimulationData<my::math::Vec3> & data,
+                                                    const my::math::Vec3 & v)
+{
+    if (v.x - data.Offset.X > data.Domain.X || v.x - data.Offset.X < 0) return true;
+    if (v.y - data.Offset.Y > data.Domain.Y || v.y - data.Offset.Y < 0) return true;
+    return v.z - data.Offset.Z > data.Domain.Z || v.z - data.Offset.Z < 0;
+}
+
+__device__ __forceinline__ bool granite::out_of_box(const SimulationData<my::math::Vec2> & data,
+                                                    const my::math::Vec2 & v)
+{
+    if (v.x - data.Offset.X > data.Domain.X || v.x - data.Offset.X < 0) return true;
+    return v.y - data.Offset.Y > data.Domain.Y || v.y - data.Offset.Y < 0;
+}
+
+__device__ __forceinline__ float granite::lerp_timed(cudaTextureObject_t back,   //
+                                                     cudaTextureObject_t front,  //
+                                                     const my::math::Vec3 & arg, //
+                                                     float time)
+{
+    return my::math::lerp(tex3D<float>(back, arg.x + .5f, arg.y + .5f, arg.z + .5f),  //
+                          tex3D<float>(front, arg.x + .5f, arg.y + .5f, arg.z + .5f), //
+                          time);
+}
+
+__device__ __forceinline__ float granite::lerp_timed(cudaTextureObject_t back,   //
+                                                     cudaTextureObject_t front,  //
+                                                     const my::math::Vec2 & arg, //
+                                                     float time)
+{
+    return my::math::lerp(tex2D<float>(back, arg.x + .5f, arg.y + .5f),  //
+                          tex2D<float>(front, arg.x + .5f, arg.y + .5f), //
+                          time);
+}
+
+__device__ __forceinline__ my::math::Vec3
+granite::interpolate(const SimulationData<my::math::Vec3> & data, const my::math::Vec3 & argn,
+                     float time)
+{
+    my::math::Vec3 arg{texture_arg(data, argn)};
+    return my::math::Vec3{lerp_timed(data.WindfieldBack[0], data.WindfieldFront[0], arg, time),
+                          lerp_timed(data.WindfieldBack[1], data.WindfieldFront[1], arg, time),
+                          lerp_timed(data.WindfieldBack[2], data.WindfieldFront[2], arg, time)};
+}
+
+__device__ __forceinline__ my::math::Vec2
+granite::interpolate(const SimulationData<my::math::Vec2> & data, const my::math::Vec2 & argn,
+                     float time)
+{
+    my::math::Vec2 arg{texture_arg(data, argn)};
+    return my::math::Vec2{lerp_timed(data.WindfieldBack[0], data.WindfieldFront[0], arg, time),
+                          lerp_timed(data.WindfieldBack[1], data.WindfieldFront[1], arg, time)};
+}
+
+__device__ __forceinline__ my::math::Vec3
+granite::interpolate(const SimulationData<my::math::Vec3> & data, const my::math::Vec3 & argn)
+{
+    my::math::Vec3 arg{texture_arg(data, argn)};
+    return my::math::Vec3{
+        tex3D<float>(data.WindfieldBack[0], arg.x + .5f, arg.y + .5f, arg.z + .5f),
+        tex3D<float>(data.WindfieldBack[1], arg.x + .5f, arg.y + .5f, arg.z + .5f),
+        tex3D<float>(data.WindfieldBack[2], arg.x + .5f, arg.y + .5f, arg.z + .5f)};
+}
+
+__device__ __forceinline__ float
+granite::interpolate_volume(const SimulationData<my::math::Vec3> & data, const size_t volume_id,
+                            const my::math::Vec3 & arg)
+{
+    return tex3D<float>(data.AdditionalVolumes[volume_id], arg.x + .5f, arg.y + .5f, arg.z + .5f);
+}
+
+__device__ __forceinline__ float
+granite::interpolate_volume(const SimulationData<my::math::Vec2> & data, const size_t volume_id,
+                            const my::math::Vec2 & arg)
+{
+    return tex2D<float>(data.AdditionalVolumes[volume_id], arg.x + .5f, arg.y + .5f);
+}
+
+__device__ __forceinline__ my::math::Vec2
+granite::interpolate(const SimulationData<my::math::Vec2> & data, const my::math::Vec2 & argn)
+{
+    my::math::Vec2 arg{texture_arg(data, argn)};
+    return my::math::Vec2{tex2D<float>(data.WindfieldBack[0], arg.x + .5f, arg.y + .5f),
+                          tex2D<float>(data.WindfieldBack[1], arg.x + .5f, arg.y + .5f)};
+}
+
+__device__ __forceinline__ my::math::Vec3
+granite::texture_arg(const SimulationData<my::math::Vec3> & data, const my::math::Vec3 & argn)
+{
+    return my::math::Vec3{
+        (argn.x - data.Offset.X) * (1.f / data.GridScale.X), //
+        (argn.y - data.Offset.Y) * (1.f / data.GridScale.Y), //
+        (argn.z - data.Offset.Z) * (1.f / data.GridScale.Z)  //
+    };
+}
+
+__device__ __forceinline__ my::math::Vec2
+granite::texture_arg(const SimulationData<my::math::Vec2> & data, const my::math::Vec2 & argn)
+{
+    return my::math::Vec2{
+        (argn.x - data.Offset.X) * (1.f / data.GridScale.X), //
+        (argn.y - data.Offset.Y) * (1.f / data.GridScale.Y)  //
+    };
+}
+
+__device__ __forceinline__ bool granite::in_topography(const SimulationData<my::math::Vec3> & data,
+                                                       const my::math::Vec3 & v)
+{
+    float x =
+        tex2D<float>(data.Topography, v.x / data.GridScale.X + .5f, v.y / data.GridScale.Y + .5f);
+    return x > v.z;
+}
+
+__device__ __forceinline__ bool granite::in_topography(const SimulationData<my::math::Vec2> & data,
+                                                       const my::math::Vec2 & v)
+{
+    return false; // has to exist but will never be used.
+}
+
+__device__ __forceinline__ float granite::kappa(const my::math::Vec3 & pm1,
+                                                const my::math::Vec3 & p,
+                                                const my::math::Vec3 & pp1, float DT)
+{
+    using namespace my::math;
+
+    // fst derivative
+    const auto dp = (pp1 - pm1) / (2 * DT);
+    // snd derivative
+    const auto ddp = (pm1 + pp1 - 2 * p) / (DT * DT);
+
+    const auto ldp = length(dp);
+    const auto ldp_3 = ldp * ldp * ldp;
+    return length(cross(dp, ddp)) / (ldp_3);
+}
+
+__device__ __forceinline__ float granite::kappa(const my::math::Vec2 & pm1,
+                                                const my::math::Vec2 & p,
+                                                const my::math::Vec2 & pp1, float DT)
+{
+    return 0.f; // invalid config
+}
+
+#endif
