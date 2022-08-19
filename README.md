@@ -1,6 +1,13 @@
+<p align="center">
 <img src="assets/granite.png" width="100"/>
+</p>
 
 # pygranite
+
+![](https://github.com/catheart97/pygranite/actions/workflows/build.yml/badge.svg)
+![](https://img.shields.io/github/v/release/catheart97/pygranite?label=Latest%20Release)
+![](https://img.shields.io/github/license/catheart97/pygranite?label=License)
+![](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-red)
 
 pygranite is a library for fast trajectory computation of particles inside of windfields using cuda hardware acceleration based on GRANITE (**G**enerate t**RA**jectories o**N** t**I**me dependen**T** fi**E**lds).
 
