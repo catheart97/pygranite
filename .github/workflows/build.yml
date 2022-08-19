@@ -1,0 +1,32 @@
+name: CMake Build
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Recursive Checkout
+      uses: actions/checkout@v3
+      with:
+        submodules: recursive
+        
+    - name: Setup CUDA
+      uses: Jimver/cuda-toolkit@v0.2.8
+      id: cuda-toolkit
+      with:
+        cuda: '11.7.0'
+        
+    - name: Configure CMake
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
