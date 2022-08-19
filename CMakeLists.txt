@@ -17,7 +17,7 @@ add_definitions(-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION)
 find_package(PythonInterp 3.7 REQUIRED) 
 find_package(PythonLibs 3.7 REQUIRED)
 
-set (CODEGEN_SHORTEN "1") 
+set (CODEGEN_SHORTEN "0") 
 set (CODEGEN_SCRIPT "source/granite/TrajectoryIntegrator.gen.py")
 execute_process(
                   COMMAND ${PYTHON_EXECUTABLE} ${CODEGEN_SCRIPT} ${CODEGEN_SHORTEN}
