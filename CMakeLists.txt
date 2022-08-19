@@ -17,10 +17,17 @@ add_definitions(-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION)
 find_package(PythonInterp 3.7 REQUIRED) 
 find_package(PythonLibs 3.7 REQUIRED)
 
-set (CODEGEN_SHORTEN "0") 
+option (CODEGEN_SHORTEN "Reduce compilation time by limiting the number of kernels! Only for build system tests!" OFF) 
+
+if (CODEGEN_SHORTEN)
+    set (CODEGEN_ARG "1")
+else ()
+    set (CODEGEN_ARG "0")
+endif()
+
 set (CODEGEN_SCRIPT "source/granite/TrajectoryIntegrator.gen.py")
 execute_process(
-                  COMMAND ${PYTHON_EXECUTABLE} ${CODEGEN_SCRIPT} ${CODEGEN_SHORTEN}
+                  COMMAND ${PYTHON_EXECUTABLE} ${CODEGEN_SCRIPT} ${CODEGEN_ARG}
                   WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
                   RESULT_VARIABLE CODEGEN_RES
                )
