@@ -1,2 +1,5 @@
+[project]
+name = "pygranite"
+
 [build-system]
 requires = ["setuptools >= 40.6.0", "wheel", "numpy", "pathlib", "cmake"]
