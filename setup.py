@@ -56,6 +56,8 @@ class CMakeBuild(build_ext):
 
         print('-'*10, 'Building extensions', '-'*40)
         cmake_cmd = ['cmake', '--build', '.', "-j4"] + self.build_args
+        if platform.system() == "Windows":
+            cmake_cmd += ['--config', 'Release']
         print('*'*5, cmake_cmd)
         subprocess.check_call(cmake_cmd,
                               cwd=self.build_temp)
@@ -84,7 +86,7 @@ setup(
     description="pygranite is a library for fast trajectory computation of particles inside of " +
                 "windfields using cuda hardware acceleration.",
     keywords="windfield trajectory trajectories gpu computation cuda meteorology atmospheric",
-    version="1.4.2",
+    version="1.4.3",
     url="https://github.com/catheart97/pygranite",
     packages=find_packages(),
     ext_modules=[
@@ -100,6 +102,7 @@ setup(
         'nt',
         'posix'
     ],
+    license="MIT",
     classifiers=[
         "Development Status :: 4 - Beta",
         "Environment :: GPU :: NVIDIA CUDA",
