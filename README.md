@@ -4,7 +4,8 @@
 
 # pygranite
 
-![](https://github.com/catheart97/pygranite/actions/workflows/build.yml/badge.svg)
+[![Linux Build](https://github.com/catheart97/pygranite/actions/workflows/linux-build.yml/badge.svg)](https://github.com/catheart97/pygranite/actions/workflows/linux-build.yml)
+[![Windows Build](https://github.com/catheart97/pygranite/actions/workflows/windows-build.yml/badge.svg)](https://github.com/catheart97/pygranite/actions/workflows/windows-build.yml)
 ![](https://img.shields.io/github/v/release/catheart97/pygranite?label=Latest%20Release)
 ![](https://img.shields.io/github/license/catheart97/pygranite?label=License)
 ![](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-red)
