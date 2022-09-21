@@ -55,7 +55,7 @@ class CMakeBuild(build_ext):
                                   cwd=self.build_temp, env=env)
 
         print('-'*10, 'Building extensions', '-'*40)
-        cmake_cmd = ['cmake', '--build', '.', "-j4"] + self.build_args
+        cmake_cmd = ['cmake', '--build', '.'] + self.build_args
         if platform.system() == "Windows":
             cmake_cmd += ['--config', 'Release']
         print('*'*5, cmake_cmd)

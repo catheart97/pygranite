@@ -3,8 +3,8 @@
 if (-not (Test-Path -Path venv)) {
     mkdir venv
     ./config-venv.ps1
-    bash -c './config-venv.sh'
+    wsl --distribution "Ubuntu-18.04" -- './config-venv.sh'
 }
 
 ./build-wheels.ps1
-bash -c "./build-wheels.sh"
+wsl --distribution "Ubuntu-18.04" -- "./build-wheels.sh"

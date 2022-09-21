@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.10)
 project(pygranite LANGUAGES CXX)
 
 find_package(CUDA 11.2 REQUIRED)
@@ -12,7 +12,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CUDA_PROPAGATE_HOST_FLAGS ON)
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
-
+ 
 add_definitions(-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION)
 find_package(PythonInterp 3.7 REQUIRED) 
 find_package(PythonLibs 3.7 REQUIRED)
