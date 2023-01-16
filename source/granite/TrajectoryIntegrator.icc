@@ -49,6 +49,24 @@ granite::interpolate(const SimulationData<my::math::Vec3> & data, const my::math
                           lerp_timed(data.WindfieldBack[2], data.WindfieldFront[2], arg, time)};
 }
 
+__device__ __forceinline__ float
+granite::interpolate_volume(const SimulationData<my::math::Vec3> & data,
+                            const cudaTextureObject_t & back, const cudaTextureObject_t & front,
+                            const my::math::Vec3 & argn, float time)
+{
+    my::math::Vec3 arg{texture_arg(data, argn)};
+    return lerp_timed(data.WindfieldBack[0], data.WindfieldFront[0], arg, time);
+}
+
+__device__ __forceinline__ float
+granite::interpolate_volume(const SimulationData<my::math::Vec2> & data,
+                            const cudaTextureObject_t & back, const cudaTextureObject_t & front,
+                            const my::math::Vec2 & argn, float time)
+{
+    my::math::Vec2 arg{texture_arg(data, argn)};
+    return lerp_timed(data.WindfieldBack[0], data.WindfieldFront[0], arg, time);
+}
+
 __device__ __forceinline__ my::math::Vec2
 granite::interpolate(const SimulationData<my::math::Vec2> & data, const my::math::Vec2 & argn,
                      float time)
@@ -72,14 +90,15 @@ __device__ __forceinline__ float
 granite::interpolate_volume(const SimulationData<my::math::Vec3> & data, const size_t volume_id,
                             const my::math::Vec3 & arg)
 {
-    return tex3D<float>(data.AdditionalVolumes[volume_id], arg.x + .5f, arg.y + .5f, arg.z + .5f);
+    return tex3D<float>(data.AdditionalVolumesBack[volume_id], arg.x + .5f, arg.y + .5f,
+                        arg.z + .5f);
 }
 
 __device__ __forceinline__ float
 granite::interpolate_volume(const SimulationData<my::math::Vec2> & data, const size_t volume_id,
                             const my::math::Vec2 & arg)
 {
-    return tex2D<float>(data.AdditionalVolumes[volume_id], arg.x + .5f, arg.y + .5f);
+    return tex2D<float>(data.AdditionalVolumesBack[volume_id], arg.x + .5f, arg.y + .5f);
 }
 
 __device__ __forceinline__ my::math::Vec2

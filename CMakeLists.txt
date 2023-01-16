@@ -35,8 +35,6 @@ message(STATUS "Code Generation Result: ${CODEGEN_RES}")
 
 set(CMAKE_BUILD_TYPE Release)
 
-option(INCLUDE_TESTS "Whether to include c++ test to the package." ON)
-
 add_subdirectory(third_party/pybind11)
 
 set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS}" "--std=c++17 -O3 -Xptxas=--suppress-stack-size-warning" )
@@ -47,11 +45,6 @@ if (WIN32)
 else ()
     set(CMAKE_CXX_FLAGS "-O3")
     set(CMAKE_MAKE_PROGRAM "${CMAKE_MAKE_PROGRAM} -j${MULTITHREADED_BUILD}")
-endif()
-
-if (INCLUDE_TESTS)
-message("-- C++ test will be included.")
-add_definitions(-DPYGRANITE_TEST) 
 endif()
 
 include_directories(
@@ -70,10 +63,8 @@ set(HEADERS
     source/granite/IntegratorSettings.hpp
     source/granite/TrajectoryIntegrator.hpp
     source/granite/TrajectoryIntegratorCompute.hpp
-    source/granite/CauchyGreenIntegrator.hpp
-    source/granite/WindfieldLoader.hpp
     source/granite/TrajectorySet.hpp
-    source/granite/ComputeLoader.hpp
+    source/granite/DataLoader.hpp
     source/granite/Info.hpp
     source/granite/TextureInfo.hpp
     source/my/math/LinearAlgebra.hpp
@@ -93,22 +84,11 @@ file(GLOB TRAJECTORY_INTEGRATOR_COMPUTE_CU_FILES
 set(SOURCES
     ${TRAJECTORY_INTEGRATOR_COMPUTE_CU_FILES}
     source/granite/TrajectoryIntegrator.cpp
-    source/granite/CauchyGreenIntegrator.cu
-    source/granite/WindfieldLoader.cpp
+    source/granite/DataLoader.cpp
     source/granite/TrajectorySet.cpp
-    source/granite/ComputeLoader.cpp
-    source/granite/WindfieldLoader.cpp
     source/granite/TrajectoryIntegratorCompute.cpp
     source/pygranite.cpp
 )
-
-if (INCLUDE_TESTS)
-set(SOURCES 
-    ${SOURCES} 
-    source/test/Test.cpp 
-    ${PROJECT_SOURCE_DIR}/third_party/catch2/extras/catch_amalgamated.cpp
-)
-endif()
 
 cuda_add_library(pygranite SHARED ${SOURCES})
 

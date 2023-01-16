@@ -82,11 +82,11 @@ class CMakeBuild(build_ext):
 setup(
     name="pygranite",
     author="Ronja Schnur",
-    author_email="catheart97@outlook.com",
+    author_email="ronjaschnur@uni-mainz.de",
     description="pygranite is a library for fast trajectory computation of particles inside of " +
                 "windfields using cuda hardware acceleration.",
     keywords="windfield trajectory trajectories gpu computation cuda meteorology atmospheric",
-    version="1.4.3",
+    version="1.5.0",
     url="https://github.com/catheart97/pygranite",
     packages=find_packages(),
     ext_modules=[

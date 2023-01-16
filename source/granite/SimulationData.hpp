@@ -16,7 +16,7 @@ namespace granite
  *        Note that there is an overhead here, as some values (usually pointers) might not be used,
  *        This is intentionally to reduce code duplication.
  *
- * @author Ronja Schnur (catheart97@outlook.com)
+ * @author Ronja Schnur (ronjaschnur@uni-mainz.de)
  */
 template <typename VEC_T> struct SimulationData
 {
@@ -29,9 +29,11 @@ template <typename VEC_T> struct SimulationData
     // textures
     cudaTextureObject_t WindfieldBack[3];
     cudaTextureObject_t WindfieldFront[3];
+    cudaTextureObject_t AdditionalVolumesBack[MAX_ADDITIONAL_VOLUMES];
+    cudaTextureObject_t AdditionalVolumesFront[MAX_ADDITIONAL_VOLUMES];
     cudaTextureObject_t Topography;
-    cudaTextureObject_t AdditionalVolumes[MAX_ADDITIONAL_VOLUMES];
     size_t NumAdditionalVolumes{0};
+    size_t NumAdditionalConstants{0};
     size_t NumAdditionalCompute{0};
 
     // time stamps of front and back + current timestamp
@@ -39,17 +41,19 @@ template <typename VEC_T> struct SimulationData
 
     // particle
     size_t NumParticles{0};
+    VEC_T * LiftFront{nullptr};
+    VEC_T * LiftBack{nullptr};
     VEC_T * BackParticles{nullptr};
     VEC_T * FrontParticles{nullptr};
     AbortReason * Status{nullptr};
     VEC_T * LastDirections{nullptr};
-    VEC_T * Lift{nullptr};
     float * TotalCurvature{nullptr};
     float * Curvature{nullptr};
     float * ParticleVolumeInfo[MAX_ADDITIONAL_VOLUMES];
     float * ParticleComputeInfo[MAX_ADDITIONAL_COMPUTE];
     float * CurrentLength{nullptr};
-    float * ComputeData[NUM_CONSTANT_ADDITIONAL_COMPUTE]{0, 0, 0, 0};
+    float * ComputeDataFront[MAX_CONSTANT_ADDITIONAL_COMPUTE]{0, 0, 0, 0};
+    float * ComputeDataBack[MAX_CONSTANT_ADDITIONAL_COMPUTE]{0, 0, 0, 0};
 
     // maximum distance particles are allowed to move
     float MaximumLength{0.f};

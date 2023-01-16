@@ -79,7 +79,7 @@ std::shared_ptr<granite::ASTTNode> granite::parse(const std::string & code)
             return std::make_shared<ASTTNode>(ASTNodeType::Reference_V);
         else if (vs.token() == "w")
             return std::make_shared<ASTTNode>(ASTNodeType::Reference_W);
-        else 
+        else
             MY_RUNTIME_ERROR("PARSER ISSUE!")
         // else if (vs.token() == "f0")
         //     return std::make_shared<ASTTNode>(ASTNodeType::Reference_F0);
@@ -106,9 +106,11 @@ std::shared_ptr<granite::ASTTNode> granite::parse(const std::string & code)
         // else if (vs.token() == "c3")
         //     return std::make_shared<ASTTNode>(ASTNodeType::Reference_C3);
     };
-    
+
     parser["OldRegister"] = [](const peg::SemanticValues & vs) {
-        MY_USER_ERROR("Identifier '" << vs.token() << "' is no longer allowed, see documentation for more information.")
+        MY_USER_ERROR("Identifier '"
+                      << vs.token()
+                      << "' is no longer allowed, see documentation for more information.")
     };
 
     parser["FunctionExpression"] = [](const peg::SemanticValues & vs) {
@@ -141,43 +143,220 @@ std::shared_ptr<granite::ASTTNode> granite::parse(const std::string & code)
     return tree;
 }
 
-void granite::TrajectoryIntegrator::initializeWindfields()
+void granite::TrajectoryIntegrator::initializeData()
 {
-    MY_VLOG("INITIALIZING WINDFIELDS ... ")
+    MY_VLOG("INITIALIZING DATA ... ")
 
-    // check if the loader provides at least one windfield
-    if (!_loader.hasNext())
-        MY_USER_ERROR("Given WindfieldLoader does not provide a single windfield.");
+    if (_settings.Space == Space::Space3D)
+        loadTexture3D(0, _loader.windfield());
+    else
+        loadTexture2D(0, _loader.windfield());
 
-    if (_settings.InterpolateWindfields)
+    if (_settings.AdditionalVolumeMode != granite::AdditionalVolumeMode::Off)
     {
-        // make sure the loader hast at least two windfields and load both textures
-        if (_settings.Space == Space::Space3D)
+        auto map = _loader.additionalVolumes();
+        if (map.size() > MAX_ADDITIONAL_VOLUMES)
+            MY_USER_WARNING("You provided more additional volumes than supported.");
+
+        uint32_t idx = 0;
+        for (auto & p : map)
         {
-            loadTexture3D(0, _loader.next());
-            if (!_loader.hasNext())
-                MY_USER_ERROR("Given WindfieldLoader has to provide at least 2 "
-                              "windfields to allow windfield interpolation.");
-            loadTexture3D(1, _loader.next());
+            auto key = p.first;
+            auto field = p.second;
+
+            if (idx == MAX_ADDITIONAL_VOLUMES) break;
+
+            _env[key] = static_cast<granite::ASTNodeType>(
+                static_cast<uint32_t>(ASTNodeType::Reference_F0) + idx);
+
+            _keys.push_back(key);
+
+            if (_settings.Space == Space::Space3D)
+            {
+                loadTexture3D(_additional_textures[0][idx].Object,      //
+                              _additional_textures[0][idx].CudaArray,   //
+                              _additional_textures[0][idx].Initialized, //
+                              field);
+            }
+            else
+            {
+                loadTexture2D(_additional_textures[0][idx].Object,      //
+                              _additional_textures[0][idx].LinearArray,   //
+                              _additional_textures[0][idx].Pitch,   //
+                              _additional_textures[0][idx].Initialized, //
+                              field, false);
+            }
+
+            idx++;
         }
-        else
+        _num_additional_volumes = idx;
+    }
+
+    if (_settings.ConstantsMode != granite::ConstantsMode::Off)
+    {
+        auto map = _loader.constants();
+        if (map.size() > MAX_CONSTANT_ADDITIONAL_COMPUTE)
+            MY_USER_WARNING("You provided more constants than supported.");
+
+        uint32_t idx = 0;
+        for (auto & p : map)
         {
-            loadTexture2D(0, _loader.next());
-            if (!_loader.hasNext())
-                MY_USER_ERROR("Given WindfieldLoader has to provide at least 2 "
-                              "windfields to allow windfield interpolation.");
-            loadTexture2D(1, _loader.next());
+            auto key = p.first;
+            auto field = p.second;
+            pybind11::buffer_info buffer{field.request()};
+
+            if (idx == MAX_CONSTANT_ADDITIONAL_COMPUTE) break;
+
+            _env[key] = static_cast<granite::ASTNodeType>(
+                static_cast<uint32_t>(ASTNodeType::Reference_C0) + idx);
+
+            cudaMalloc(&_constants_device[0][idx], _set->numberTrajectories() * sizeof(float));
+            MY_CUDA_ERROR_CHECK
+
+            cudaMemcpy(_constants_device[0][idx],                  //
+                       reinterpret_cast<float *>(buffer.ptr),      //
+                       _set->numberTrajectories() * sizeof(float), //
+                       cudaMemcpyHostToDevice);
+            MY_CUDA_ERROR_CHECK
+
+            idx++;
         }
+    }
+
+    if (_settings.UpLiftMode != granite::UpLiftMode::Off)
+    {
+        auto field = _loader.uplift();
+        if (field.size() != _set->numberTrajectories())
+            MY_USER_ERROR("Uplift dimension does not match number of particles.")
+
+        pybind11::buffer_info buffer{field.request()};
+        const size_t DIM = _settings.Space == granite::Space::Space2D ? 2 : 3;
+
+        cudaMalloc(&_uplift_device[0], _set->numberTrajectories() * sizeof(float) * DIM);
+        MY_CUDA_ERROR_CHECK
+
+        cudaMemcpy(_uplift_device[0],                                //
+                   reinterpret_cast<float *>(buffer.ptr),            //
+                   _set->numberTrajectories() * sizeof(float) * DIM, //
+                   cudaMemcpyHostToDevice);
+        MY_CUDA_ERROR_CHECK
+    }
+
+    if ((_settings.WindfieldMode == granite::WindfieldMode::Dynamic ||
+         _settings.UpLiftMode == granite::UpLiftMode::Dynamic ||
+         _settings.AdditionalVolumeMode == granite::AdditionalVolumeMode::Dynamic ||
+         _settings.ConstantsMode == granite::ConstantsMode::Dynamic) &&
+        !_loader.step()) 
+    {
+        MY_USER_ERROR("Cannot increment loader.");
     }
     else
+        return;
+
+    updateData(1);
+
+    MY_VLOG("INITIALIZING DATA ... DONE")
+}
+
+void granite::TrajectoryIntegrator::updateData(size_t index)
+{
+    if (_settings.WindfieldMode == granite::WindfieldMode::Dynamic)
     {
         if (_settings.Space == Space::Space3D)
-            loadTexture3D(0, _loader.next());
+            loadTexture3D(index, _loader.windfield());
         else
-            loadTexture2D(0, _loader.next());
+            loadTexture2D(index, _loader.windfield());
     }
 
-    MY_VLOG("INITIALIZING WINDFIELDS ... DONE")
+    if (_settings.AdditionalVolumeMode == granite::AdditionalVolumeMode::Dynamic)
+    {
+        auto map = _loader.additionalVolumes();
+
+        for (auto & p : map)
+        {
+            auto key = p.first;
+            auto field = p.second;
+
+            if (_env.find(key) == _env.end()) continue;
+
+            uint32_t idx = static_cast<uint32_t>(_env[key]) -
+                           static_cast<uint32_t>(granite::ASTNodeType::Reference_F0);
+
+            if (_settings.Space == Space::Space3D)
+            {
+                loadTexture3D(_additional_textures[index][idx].Object,      //
+                              _additional_textures[index][idx].CudaArray,   //
+                              _additional_textures[index][idx].Initialized, //
+                              field);
+            }
+            else
+            {
+                loadTexture2D(_additional_textures[index][idx].Object,      //
+                              _additional_textures[index][idx].LinearArray,   //
+                              _additional_textures[index][idx].Pitch,   //
+                              _additional_textures[index][idx].Initialized, //
+                              field, false);
+            }
+
+            idx++;
+        }
+    }
+
+    if (_settings.ConstantsMode == granite::ConstantsMode::Dynamic)
+    {
+        auto map = _loader.constants();
+        if (map.size() > MAX_CONSTANT_ADDITIONAL_COMPUTE)
+            MY_USER_WARNING("You provided more constants than supported.");
+
+        for (auto & p : map)
+        {
+            auto key = p.first;
+            auto field = p.second;
+            pybind11::buffer_info buffer{field.request()};
+
+            if (_env.find(key) == _env.end()) continue;
+
+            uint32_t idx = static_cast<uint32_t>(_env[key]) -
+                           static_cast<uint32_t>(granite::ASTNodeType::Reference_F0);
+
+            if (!_constants_device[index][idx])
+            {
+                cudaMalloc(&_constants_device[index][idx],
+                           _set->numberTrajectories() * sizeof(float));
+                MY_CUDA_ERROR_CHECK
+            }
+
+            cudaMemcpy(_constants_device[index][idx],              //
+                       reinterpret_cast<float *>(buffer.ptr),      //
+                       _set->numberTrajectories() * sizeof(float), //
+                       cudaMemcpyHostToDevice);
+            MY_CUDA_ERROR_CHECK
+
+            idx++;
+        }
+    }
+
+    if (_settings.UpLiftMode == granite::UpLiftMode::Dynamic)
+    {
+        auto field = _loader.uplift();
+        if (field.size() != _set->numberTrajectories())
+            MY_USER_ERROR("Uplift dimension does not match number of particles.")
+
+        pybind11::buffer_info buffer{field.request()};
+        const size_t DIM = _settings.Space == granite::Space::Space2D ? 2 : 3;
+
+        if (!_uplift_device[index])
+        {
+            cudaMalloc(&_uplift_device[index], _set->numberTrajectories() * sizeof(float) * DIM);
+            MY_CUDA_ERROR_CHECK
+        }
+
+        cudaMemcpy(_uplift_device[index],                            //
+                   reinterpret_cast<float *>(buffer.ptr),            //
+                   _set->numberTrajectories() * sizeof(float) * DIM, //
+                   cudaMemcpyHostToDevice);
+        MY_CUDA_ERROR_CHECK
+    }
 }
 
 granite::TrajectoryIntegrator::~TrajectoryIntegrator()
@@ -193,11 +372,14 @@ granite::TrajectoryIntegrator::~TrajectoryIntegrator()
             }
         }
 
-        for (size_t i = 0; i < MAX_ADDITIONAL_VOLUMES; ++i)
+        for (size_t j = 0; j < 3; ++j)
         {
-            if (_additional_textures[i].Initialized)
+            for (size_t i = 0; i < MAX_ADDITIONAL_VOLUMES; ++i)
             {
-                cudaFreeArray(_additional_textures[i].CudaArray);
+                if (_additional_textures[j][i].Initialized)
+                {
+                    cudaFreeArray(_additional_textures[j][i].CudaArray);
+                }
             }
         }
     }
@@ -212,14 +394,28 @@ granite::TrajectoryIntegrator::~TrajectoryIntegrator()
             }
         }
 
-        for (size_t i = 0; i < MAX_ADDITIONAL_VOLUMES; ++i)
+        for (size_t j = 0; j < 3; ++j)
         {
-            if (_additional_textures[i].Initialized)
+            for (size_t i = 0; i < MAX_ADDITIONAL_VOLUMES; ++i)
             {
-                cudaFree(_additional_textures[i].LinearArray);
+                if (_additional_textures[j][i].Initialized)
+                {
+                    cudaFree(_additional_textures[j][i].LinearArray);
+                }
             }
         }
     }
+
+    for (size_t i = 0; i < 3; ++i)
+    {
+        if (_uplift_device[i]) cudaFree(_uplift_device[i]);
+
+        for (size_t j = 0; j < MAX_CONSTANT_ADDITIONAL_COMPUTE; ++j)
+        {
+            if (_constants_device[i][j]) cudaFree(_constants_device[i][j]);
+        }
+    }
+
     if (_topography_texture.Initialized) cudaFree(_topography_texture.LinearArray);
     if (_particles_device.front()) cudaFree(_particles_device.front());
     if (_particles_device.back()) cudaFree(_particles_device.back());
@@ -464,47 +660,6 @@ void granite::TrajectoryIntegrator::initializeTopography()
     }
 
     MY_VLOG("INITIALIZING TOPOGRAPHY ... DONE");
-}
-
-void granite::TrajectoryIntegrator::initializeAdditionalVolumes()
-{
-    MY_VLOG("INITIALIZING ADDITIONAL VOLUMES ...");
-
-    if (_settings.AdditionalVolumes.size())
-    {
-        if (_settings.AdditionalVolumes.size() > MAX_ADDITIONAL_VOLUMES)
-        {
-            MY_USER_WARNING("Only " << MAX_ADDITIONAL_VOLUMES
-                                    << " additional volumes are supported! You provided data for "
-                                    << _settings.AdditionalVolumes.size()
-                                    << " volumes. Only the first " << MAX_ADDITIONAL_VOLUMES
-                                    << " will be used.")
-        }
-
-        size_t i = 0;
-        for (auto & p : _settings.AdditionalVolumes)
-        {
-            if (_settings.Space == granite::Space::Space3D)
-            {
-                loadTexture3D(_additional_textures[i].Object,      //
-                              _additional_textures[i].CudaArray,   //
-                              _additional_textures[i].Initialized, //
-                              p.second);
-            }
-            else
-            {
-                loadTexture2D(_additional_textures[i].Object,      //
-                              _additional_textures[i].LinearArray, //
-                              _additional_textures[i].Pitch,       //
-                              _additional_textures[i].Initialized, //
-                              p.second,                            //
-                              true);
-            }
-            i++;
-        }
-    }
-
-    MY_VLOG("INITIALIZING ADDITIONAL VOLUMES ... DONE");
 }
 
 void granite::TrajectoryIntegrator::verifySettings()
@@ -836,31 +991,4 @@ bool granite::contains(const std::shared_ptr<ASTTNode> & node, ASTNodeType t)
     if (node->Left) result |= contains(node->Left, t);
     if (node->Right) result |= contains(node->Right, t);
     return result;
-}
-
-std::unordered_map<std::string, granite::ASTNodeType>
-granite::TrajectoryIntegrator::generateEnvironment()
-{
-    std::unordered_map<std::string, ASTNodeType> env;
-
-    size_t i = 0;
-    for (auto & p : _settings.AdditionalVolumes)
-    {
-        env.insert(std::make_pair(
-            p.first,
-            static_cast<ASTNodeType>(static_cast<size_t>(ASTNodeType::Reference_F0) + i++)));
-        if (i >= 8) break;
-    }
-
-    i = 0;
-    for (auto & p : _settings.AdditionalConstants)
-    {
-        env.insert(std::make_pair(
-            p.first,
-            static_cast<ASTNodeType>(static_cast<size_t>(ASTNodeType::Reference_C0) + i++)));
-
-        if (i >= 4) break;
-    }
-
-    return env;
 }

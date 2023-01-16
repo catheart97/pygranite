@@ -8,10 +8,6 @@ PYBIND11_MODULE(pygranite, m)
         "pygranite is a library for fast trajectory computation of particles inside of "
         "windfields using cuda hardware acceleration."
         ""
-#ifdef PYGRANITE_TEST
-        "Build includes test suite."
-        ""
-#endif
         "Licensing Information:\n\n"
         "This software contains source code provided by NVIDIA Corporation.\n\n"
         "pybind11 Copyright (c) 2016 Wenzel Jakob <wenzel.jakob@epfl.ch>, All rights reserved."
@@ -86,19 +82,34 @@ PYBIND11_MODULE(pygranite, m)
         .value("Dynamic", granite::UpLiftMode::Dynamic)
         .export_values();
 
+    pybind11::enum_<granite::WindfieldMode>(m, "WindfieldMode")
+        .value("Constant", granite::WindfieldMode::Constant)
+        .value("Dynamic", granite::WindfieldMode::Dynamic)
+        .export_values();
+
+    pybind11::enum_<granite::AdditionalVolumeMode>(m, "AdditionalVolumeMode")
+        .value("Off", granite::AdditionalVolumeMode::Off)
+        .value("Constant", granite::AdditionalVolumeMode::Constant)
+        .value("Dynamic", granite::AdditionalVolumeMode::Dynamic)
+        .export_values();
+
+    pybind11::enum_<granite::ConstantsMode>(m, "ConstantsMode")
+        .value("Off", granite::ConstantsMode::Off)
+        .value("Constant", granite::ConstantsMode::Constant)
+        .value("Dynamic", granite::ConstantsMode::Dynamic)
+        .export_values();
+
     pybind11::class_<granite::IntegratorSettings>(m, "IntegratorSettings")
         .def(pybind11::init<>())
         .def_readwrite("Space", &granite::IntegratorSettings::Space)
         .def_readwrite("Integrator", &granite::IntegratorSettings::Integrator)
         .def_readwrite("DeltaT", &granite::IntegratorSettings::DeltaT)
         .def_readwrite("SaveInterval", &granite::IntegratorSettings::SaveInterval)
-        .def_readwrite("InterpolateWindfields", &granite::IntegratorSettings::InterpolateWindfields)
         .def_readwrite("MinimumAliveParticles", &granite::IntegratorSettings::MinimumAliveParticles)
         .def_readwrite("GridScale", &granite::IntegratorSettings::GridScale)
-        .def_readwrite("WindfieldTimeDistance", &granite::IntegratorSettings::WindfieldTimeDistance)
+        .def_readwrite("DataTimeDistance", &granite::IntegratorSettings::DataTimeDistance)
         .def_readwrite("Topography", &granite::IntegratorSettings::Topography)
         .def_readwrite("MaximumLength", &granite::IntegratorSettings::MaximumLength)
-        .def_readwrite("AdditionalVolumes", &granite::IntegratorSettings::AdditionalVolumes)
         .def_readwrite("AdditionalCompute", &granite::IntegratorSettings::AdditionalCompute)
         .def_readwrite("Offset", &granite::IntegratorSettings::Offset)
         .def_readwrite("Reverse", &granite::IntegratorSettings::Reverse)
@@ -107,38 +118,24 @@ PYBIND11_MODULE(pygranite, m)
         .def_readwrite("CurvatureMode", &granite::IntegratorSettings::CurvatureMode)
         .def_readwrite("AbortMode", &granite::IntegratorSettings::AbortMode)
         .def_readwrite("UpLiftMode", &granite::IntegratorSettings::UpLiftMode)
-        .def_readwrite("AdditionalConstants", &granite::IntegratorSettings::AdditionalConstants)
+        .def_readwrite("WindfieldMode", &granite::IntegratorSettings::WindfieldMode)
+        .def_readwrite("AdditionalVolumeMode", &granite::IntegratorSettings::AdditionalVolumeMode)
+        .def_readwrite("ConstantsMode", &granite::IntegratorSettings::ConstantsMode)
         .def_readwrite("MaximumSimulationTime",
                        &granite::IntegratorSettings::MaximumSimulationTime);
 
-    pybind11::class_<granite::CauchyGreenProperties>(m, "CauchyGreenProperties")
-        .def(pybind11::init<>())
-        .def_readwrite("MIN", &granite::CauchyGreenProperties::MIN)
-        .def_readwrite("MAX", &granite::CauchyGreenProperties::MAX)
-        .def_readwrite("DLON", &granite::CauchyGreenProperties::DLON)
-        .def_readwrite("DLAT", &granite::CauchyGreenProperties::DLAT)
-        .def_readwrite("DIM", &granite::CauchyGreenProperties::DIM);
-
     pybind11::class_<granite::TrajectoryIntegrator>(m, "TrajectoryIntegrator")
-        .def(pybind11::init<granite::IntegratorSettings &, granite::WindfieldLoader &,
+        .def(pybind11::init<granite::IntegratorSettings &, granite::DataLoader &,
                             granite::TrajectorySet &>())
         .def("compute", &granite::TrajectoryIntegrator::compute);
 
-    pybind11::class_<granite::CauchyGreenIntegrator>(m, "CauchyGreenIntegrator")
-        .def(pybind11::init<granite::IntegratorSettings &, granite::WindfieldLoader &,
-                            granite::CauchyGreenProperties &>())
-        .def("compute", &granite::CauchyGreenIntegrator::computeCG);
-
-    pybind11::class_<granite::ComputeLoader, granite::PyComputeLoader>(m, "ComputeLoader")
+    pybind11::class_<granite::DataLoader, granite::PyDataLoader>(m, "DataLoader")
         .def(pybind11::init<>())
-        .def("hasNext", &granite::ComputeLoader::hasNext)
-        .def("next", &granite::ComputeLoader::next);
-
-    pybind11::class_<granite::WindfieldLoader, granite::PyWindfieldLoader>(m, "WindfieldLoader")
-        .def(pybind11::init<>())
-        .def("hasNext", &granite::WindfieldLoader::hasNext)
-        .def("next", &granite::WindfieldLoader::next)
-        .def("uplift", &granite::WindfieldLoader::uplift);
+        .def("step", &granite::DataLoader::step)
+        .def("windfield", &granite::DataLoader::windfield)
+        .def("uplift", &granite::DataLoader::uplift)
+        .def("constants", &granite::DataLoader::constants)
+        .def("additionalVolumes", &granite::DataLoader::additionalVolumes);
 
     pybind11::class_<granite::TrajectorySet>(m, "TrajectorySet")
         .def(pybind11::init<pybind11::array_t<float>>())

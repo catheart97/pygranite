@@ -7,7 +7,7 @@ namespace my::util
  * @brief This class implements a SwapChain. (value_t should be a pointer or reference for best
  *        results)
  *
- * @author Ronja Schnur (catheart97@outlook.com)
+ * @author Ronja Schnur (ronjaschnur@uni-mainz.de)
  */
 template <typename value_t> struct SwapChain
 {

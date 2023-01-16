@@ -123,44 +123,54 @@ __global__ void granite::integrate(SimulationData<VEC_T> data)
         if (data.Status[pid] == AbortReason::Time)
         {
             VEC_T v, vc;
-            if (USE_INTERPOLATE)
+            float t{0.0f};
+            if (UPLIFT_MODE == granite::UpLiftMode::Dynamic ||
+                WINDFIELD_MODE == granite::WindfieldMode::Dynamic ||
+                CONSTANTS_MODE == granite::ConstantsMode::Dynamic ||
+                ADDITIONAL_VOLUME_MODE == granite::AdditionalVolumeMode::Dynamic)
+            {
+                t = my::math::unit_interval(data.Time, data.TimeFront, data.TimeBack);
+            }
+
+            if (WINDFIELD_MODE == granite::WindfieldMode::Dynamic)
             {
                 switch (INTEGRATOR)
                 {
                     case granite::Integrator::ClassicRungeKutta: {
-                        float t0 =
-                            my::math::unit_interval(data.Time, data.TimeFront, data.TimeBack);
-                        float t1 = my::math::unit_interval(data.Time + .5f * data.DeltaT,
-                                                           data.TimeFront, data.TimeBack);
-                        float t2 = my::math::unit_interval(data.Time + data.DeltaT, data.TimeFront,
-                                                           data.TimeBack);
+                        const float & t0 = t;
+                        const float t1 = my::math::unit_interval(data.Time + .5f * data.DeltaT,
+                                                                 data.TimeFront, data.TimeBack);
+                        const float t2 = my::math::unit_interval(data.Time + data.DeltaT,
+                                                                 data.TimeFront, data.TimeBack);
 
                         if (USE_SPHERE_COORDINATES && SPACE == granite::Space::Space2D)
                         {
                             VEC_T k1c = interpolate(data, particle, t0);
-                            VEC_T k1 = sphere_coordinates(data, particle.y, k1c);
+                            const VEC_T k1 = sphere_coordinates(data, particle.y, k1c);
 
                             VEC_T p = particle + k1 * (0.5f * data.DeltaT);
                             VEC_T k2c = interpolate(data, p, t1);
-                            VEC_T k2 = sphere_coordinates(data, p.y, k2c);
+                            const VEC_T k2 = sphere_coordinates(data, p.y, k2c);
 
                             p = particle + k2 * (0.5f * data.DeltaT);
                             VEC_T k3c = interpolate(data, p, t1);
-                            VEC_T k3 = sphere_coordinates(data, p.y, k3c);
+                            const VEC_T k3 = sphere_coordinates(data, p.y, k3c);
 
                             p = particle + k3 * data.DeltaT;
                             VEC_T k4c = interpolate(data, p, t2);
-                            VEC_T k4 = sphere_coordinates(data, p.y, k4c);
+                            const VEC_T k4 = sphere_coordinates(data, p.y, k4c);
 
                             if (COMP_ADDITIONAL) vc = (k1c + k2c * 2 + k3c * 2 + k4c) * (1.0f / 6);
                             v = (k1 + k2 * 2 + k3 * 2 + k4) * (1.0f / 6);
                         }
                         else
                         {
-                            VEC_T k1 = interpolate(data, particle, t0);
-                            VEC_T k2 = interpolate(data, particle + k1 * (0.5f * data.DeltaT), t1);
-                            VEC_T k3 = interpolate(data, particle + k2 * (0.5f * data.DeltaT), t1);
-                            VEC_T k4 = interpolate(data, particle + k3 * data.DeltaT, t2);
+                            const VEC_T k1 = interpolate(data, particle, t0);
+                            const VEC_T k2 =
+                                interpolate(data, particle + k1 * (0.5f * data.DeltaT), t1);
+                            const VEC_T k3 =
+                                interpolate(data, particle + k2 * (0.5f * data.DeltaT), t1);
+                            const VEC_T k4 = interpolate(data, particle + k3 * data.DeltaT, t2);
 
                             v = (k1 + k2 * 2 + k3 * 2 + k4) * (1.0f / 6);
                             vc = v;
@@ -168,7 +178,6 @@ __global__ void granite::integrate(SimulationData<VEC_T> data)
                     }
                     break;
                     default: {
-                        float t = my::math::unit_interval(data.Time, data.TimeFront, data.TimeBack);
                         vc = interpolate(data, particle, t);
                         v = vc;
                         if (USE_SPHERE_COORDINATES && SPACE == granite::Space::Space2D)
@@ -185,16 +194,17 @@ __global__ void granite::integrate(SimulationData<VEC_T> data)
                         if (USE_SPHERE_COORDINATES && SPACE == granite::Space::Space2D)
                         {
                             VEC_T k1c = interpolate(data, particle);
-                            VEC_T k1 = sphere_coordinates(data, particle.y, k1c);
+                            const VEC_T k1 = sphere_coordinates(data, particle.y, k1c);
+                            
                             VEC_T p = particle + k1 * (0.5f * data.DeltaT);
                             VEC_T k2c = interpolate(data, p);
-                            VEC_T k2 = sphere_coordinates(data, p.y, k2c);
+                            const VEC_T k2 = sphere_coordinates(data, p.y, k2c);
                             p = particle + k2 * (0.5f * data.DeltaT);
                             VEC_T k3c = interpolate(data, p);
-                            VEC_T k3 = sphere_coordinates(data, p.y, k3c);
+                            const VEC_T k3 = sphere_coordinates(data, p.y, k3c);
                             p = particle + k3 * data.DeltaT;
                             VEC_T k4c = interpolate(data, p);
-                            VEC_T k4 = sphere_coordinates(data, p.y, k4c);
+                            const VEC_T k4 = sphere_coordinates(data, p.y, k4c);
 
                             if (COMP_ADDITIONAL) vc = (k1c + k2c * 2 + k3c * 2 + k4c) * (1.0f / 6);
                             v = (k1 + k2 * 2 + k3 * 2 + k4) * (1.0f / 6);
@@ -223,9 +233,14 @@ __global__ void granite::integrate(SimulationData<VEC_T> data)
             // UpLift is always positive (even on reverse computation)
             VEC_T dp;
             if (UPLIFT_MODE != granite::UpLiftMode::Off)
-                dp = v * data.DeltaT + data.Lift[pid] * (USE_REVERSE_COMPUTATION ? -1 : 1);
+            {
+                dp = v * data.DeltaT + my::math::lerp(data.LiftFront[pid], data.LiftBack[pid], t) *
+                                           (USE_REVERSE_COMPUTATION ? -1 : 1);
+            }
             else
+            {
                 dp = v * data.DeltaT;
+            }
 
             AbortReason abort{AbortReason::Time};
             if (ABORT_MODE != granite::AbortMode::Time) // FitLength or Length
@@ -338,12 +353,19 @@ __global__ void granite::integrate(SimulationData<VEC_T> data)
                     }
                 }
 
-                if (COMP_ADDITIONAL_VOLUME)
+                if (ADDITIONAL_VOLUME_MODE != granite::AdditionalVolumeMode::Off)
                 {
                     VEC_T arg{texture_arg(data, new_pos)};
                     for (size_t i = 0; i < data.NumAdditionalVolumes; ++i)
                     {
-                        data.ParticleVolumeInfo[i][pid] = interpolate_volume(data, i, arg);
+                        if (ADDITIONAL_VOLUME_MODE == granite::AdditionalVolumeMode::Constant)
+                            data.ParticleVolumeInfo[i][pid] = interpolate_volume(data, i, arg);
+                        else
+                        {
+                            data.ParticleVolumeInfo[i][pid] =
+                                interpolate_volume(data, data.AdditionalVolumesBack[i],
+                                                   data.AdditionalVolumesFront[i], arg, t);
+                        }
                     }
                 }
 
@@ -364,13 +386,49 @@ __global__ void granite::integrate(SimulationData<VEC_T> data)
                         data.NumAdditionalVolumes > 5 ? data.ParticleVolumeInfo[5][pid] : 0.f, //
                         data.NumAdditionalVolumes > 6 ? data.ParticleVolumeInfo[6][pid] : 0.f, //
                         data.NumAdditionalVolumes > 7 ? data.ParticleVolumeInfo[7][pid] : 0.f, //
-                        data.ComputeData[0] ? data.ComputeData[0][pid] : 0.f,                  //
-                        data.ComputeData[1] ? data.ComputeData[1][pid] : 0.f,                  //
-                        data.ComputeData[2] ? data.ComputeData[2][pid] : 0.f,                  //
-                        data.ComputeData[3] ? data.ComputeData[3][pid] : 0.f,                  //
-                        vc.x,                                                                   //
-                        vc.y,                                                                   //
-                        get_z(vc)                                                               //
+                        data.NumAdditionalConstants > 0                                        //
+                            ? (data.ComputeDataBack[0]                                         //
+                                   ? (CONSTANTS_MODE == granite::ConstantsMode::Dynamic        //
+                                          ? my::math::lerp(data.ComputeDataBack[0][pid],       //
+                                                           data.ComputeDataFront[0][pid],      //
+                                                           t)                                  //
+                                          : data.ComputeDataBack[0][pid]                       //
+                                      )                                                        //
+                                   : 0.f)                                                      //
+                            : 0.f,                                                             //
+                        data.NumAdditionalConstants > 1                                        //
+                            ? (data.ComputeDataBack[1]                                         //
+                                   ? (CONSTANTS_MODE == granite::ConstantsMode::Dynamic        //
+                                          ? my::math::lerp(data.ComputeDataBack[1][pid],       //
+                                                           data.ComputeDataFront[1][pid],      //
+                                                           t)                                  //
+                                          : data.ComputeDataBack[1][pid]                       //
+                                      )                                                        //
+                                   : 0.f)                                                      //
+                            : 0.f,                                                             //
+                        data.NumAdditionalConstants > 2                                        //
+                            ? (data.ComputeDataBack[2]                                         //
+                                   ? (CONSTANTS_MODE == granite::ConstantsMode::Dynamic        //
+                                          ? my::math::lerp(data.ComputeDataBack[2][pid],       //
+                                                           data.ComputeDataFront[2][pid],      //
+                                                           t)                                  //
+                                          : data.ComputeDataBack[2][pid]                       //
+                                      )                                                        //
+                                   : 0.f)                                                      //
+                            : 0.f,                                                             //
+                        data.NumAdditionalConstants > 3                                        //
+                            ? (data.ComputeDataBack[3]                                         //
+                                   ? (CONSTANTS_MODE == granite::ConstantsMode::Dynamic        //
+                                          ? my::math::lerp(data.ComputeDataBack[3][pid],       //
+                                                           data.ComputeDataFront[3][pid],      //
+                                                           t)                                  //
+                                          : data.ComputeDataBack[3][pid]                       //
+                                      )                                                        //
+                                   : 0.f)                                                      //
+                            : 0.f,                                                             //
+                        vc.x,                                                                  //
+                        vc.y,                                                                  //
+                        get_z(vc)                                                              //
                     };
 
                     for (auto i = 0; i < data.NumAdditionalCompute; ++i)
@@ -559,11 +617,10 @@ void granite::TrajectoryIntegrator::compute_(std::vector<std::vector<VEC_T>> & t
     }
 
     //// ! Additional Volume
-    if (COMP_ADDITIONAL_VOLUME)
+    if (ADDITIONAL_VOLUME_MODE != granite::AdditionalVolumeMode::Off)
     {
         MY_VLOG("SETTING UP DEVICE VOLUME BUFFERS ...");
-        data.NumAdditionalVolumes =
-            std::min(_settings.AdditionalVolumes.size(), granite::MAX_ADDITIONAL_VOLUMES);
+        data.NumAdditionalVolumes = _num_additional_volumes;
 
         for (size_t i = 0; i < data.NumAdditionalVolumes; ++i)
         {
@@ -579,45 +636,9 @@ void granite::TrajectoryIntegrator::compute_(std::vector<std::vector<VEC_T>> & t
 
     //// ! Initialize additional compute data
     MY_VLOG("SETTING UP ADDITIONAL COMPUTE ...")
-    bool constant_compute_data[NUM_CONSTANT_ADDITIONAL_COMPUTE];
+    
     if (COMP_ADDITIONAL)
     {
-        // load constant data
-        size_t i = 0;
-        for (auto & p : _settings.AdditionalConstants)
-        {
-            if (!p.second.hasNext())
-                MY_USER_ERROR(
-                    "AdditionalConstant does not provide a single constant for each point.")
-            pybind11::array_t<float> pydata{p.second.next()};
-            pybind11::buffer_info buffer{pydata.request()};
-
-            if (buffer.shape[0] != 0)
-            {
-                if (buffer.shape[0] != data.NumParticles)
-                    MY_USER_ERROR("Constant compute provides wrong amount of data.");
-
-                cudaMalloc(&data.ComputeData[i], data.NumParticles * sizeof(float));
-                MY_CUDA_ERROR_CHECK
-
-                cudaMemcpy(data.ComputeData[i],                   //
-                           reinterpret_cast<float *>(buffer.ptr), //
-                           data.NumParticles * sizeof(float),     //
-                           cudaMemcpyHostToDevice);
-                MY_CUDA_ERROR_CHECK
-
-                constant_compute_data[i] = true;
-            }
-            else
-            {
-                constant_compute_data[i] = false;
-                data.ComputeData[i] = nullptr;
-            }
-
-            i++;
-            if (i >= NUM_CONSTANT_ADDITIONAL_COMPUTE) break;
-        }
-
         // setup interpreter data
         _set->_num_additional_compute = _settings.AdditionalCompute.size();
         data.NumAdditionalCompute = _set->_num_additional_compute;
@@ -626,9 +647,9 @@ void granite::TrajectoryIntegrator::compute_(std::vector<std::vector<VEC_T>> & t
              ++i)
         {
             std::string code = _settings.AdditionalCompute[i];
-            auto ast = granite::parse(code);
 
-            ast = replace_environment(ast, generateEnvironment());
+            auto ast = granite::parse(code);
+            ast = replace_environment(ast, _env);
 
             if (SPACE == granite::Space::Space2D &&
                 contains(ast, granite::ASTNodeType::Reference_Z))
@@ -654,13 +675,13 @@ void granite::TrajectoryIntegrator::compute_(std::vector<std::vector<VEC_T>> & t
             if (data.NumAdditionalVolumes < 1 && contains(ast, granite::ASTNodeType::Reference_F0))
                 MY_USER_ERROR("Compute code contains undefinded token 'f0'");
 
-            if (!data.ComputeData[0] && contains(ast, granite::ASTNodeType::Reference_C0))
+            if (_num_additional_constants < 1 && contains(ast, granite::ASTNodeType::Reference_C0))
                 MY_USER_ERROR("Compute code contains undefinded token 'c0'");
-            if (!data.ComputeData[1] && contains(ast, granite::ASTNodeType::Reference_C1))
+            if (_num_additional_constants < 2 && contains(ast, granite::ASTNodeType::Reference_C1))
                 MY_USER_ERROR("Compute code contains undefinded token 'c1'");
-            if (!data.ComputeData[2] && contains(ast, granite::ASTNodeType::Reference_C2))
+            if (_num_additional_constants < 3 && contains(ast, granite::ASTNodeType::Reference_C2))
                 MY_USER_ERROR("Compute code contains undefinded token 'c2'");
-            if (!data.ComputeData[3] && contains(ast, granite::ASTNodeType::Reference_C3))
+            if (_num_additional_constants < 4 && contains(ast, granite::ASTNodeType::Reference_C3))
                 MY_USER_ERROR("Compute code contains undefinded token 'c3'");
 
             if (CURVATURE_MODE != granite::CurvatureMode::IndividualAndTotalCurvature &&
@@ -727,11 +748,6 @@ void granite::TrajectoryIntegrator::compute_(std::vector<std::vector<VEC_T>> & t
 
     if (COMP_ADDITIONAL)
     {
-        for (size_t i = 0; i < NUM_CONSTANT_ADDITIONAL_COMPUTE; ++i)
-        {
-            if (constant_compute_data[i]) cudaFree(data.ComputeData[i]);
-        }
-
         for (size_t i = 0; i < std::min(_settings.AdditionalCompute.size(), MAX_ADDITIONAL_COMPUTE);
              ++i)
         {
@@ -757,7 +773,7 @@ void granite::TrajectoryIntegrator::computeLoop_(SimulationData<VEC_T> & data)
 {
     data.Time = 0;
     size_t counter = 0;
-    float max_windfield_time{_settings.WindfieldTimeDistance};
+    float max_windfield_time{_settings.DataTimeDistance};
 
     MY_VLOG("COMPUTING OPTIMAL KERNEL PARAMETERS ...");
 
@@ -775,12 +791,6 @@ void granite::TrajectoryIntegrator::computeLoop_(SimulationData<VEC_T> & data)
     int32_t * number_alive_device;
     cudaMalloc(&number_alive_device, sizeof(int32_t));
 
-    if (UPLIFT_MODE != granite::UpLiftMode::Off)
-    {
-        cudaMalloc(&data.Lift, sizeof(VEC_T) * data.NumParticles);
-        loadLiftData(data);
-    }
-
     // checks if at least one particle is alive (false = alive, true = dead)
     bool abort_due_alive{false};
     std::function<bool(void)> alive = [&]() {
@@ -795,7 +805,40 @@ void granite::TrajectoryIntegrator::computeLoop_(SimulationData<VEC_T> & data)
 
     MY_VLOG("COMPUTING OPTIMAL KERNEL PARAMETERS ... DONE");
 
+    MY_VLOG("SETTING UP CONSTANT DATA ... ");
+    if (WINDFIELD_MODE == granite::WindfieldMode::Constant)
+    {
+        data.WindfieldBack[0] = _windfield_textures[0][0].Object;
+        data.WindfieldBack[1] = _windfield_textures[0][1].Object;
+        data.WindfieldBack[2] = _windfield_textures[0][2].Object;
+        // data.TimeBack = COUNTER * _settings.DataTimeDistance;
+    }
+
+    if (ADDITIONAL_VOLUME_MODE == granite::AdditionalVolumeMode::Constant)
+    {
+        for (size_t i = 0; i < data.NumAdditionalVolumes; ++i)
+        {
+            data.AdditionalVolumesBack[i] = _additional_textures[_back_index][i].Object;
+        }
+    }
+
+    if (UPLIFT_MODE == granite::UpLiftMode::Constant)
+    {
+        data.LiftBack = reinterpret_cast<VEC_T *>(_uplift_device[0]);
+    }
+
+    data.NumAdditionalConstants = _num_additional_constants;
+    if (CONSTANTS_MODE == granite::ConstantsMode::Constant)
+    {
+        for (size_t i = 0; i < _num_additional_constants; ++i)
+        {
+            data.ComputeDataBack[i] = _constants_device[0][i];
+            data.ComputeDataFront[i] = _constants_device[0][i];
+        }
+    }
+
     data.DeltaT = _settings.DeltaT;
+    MY_VLOG("SETTING UP CONSTANT DATA ... DONE");
 
     MY_VLOG("LAUNCHING COMPUTE LOOP")
 
@@ -804,53 +847,42 @@ void granite::TrajectoryIntegrator::computeLoop_(SimulationData<VEC_T> & data)
         MY_VLOG("INITIATING COMPUTE THREAD")
 
         std::thread compute_gpu;
-        if (UPLIFT_MODE == granite::UpLiftMode::Dynamic)
+        if (_settings.WindfieldMode == granite::WindfieldMode::Dynamic ||
+            _settings.UpLiftMode == granite::UpLiftMode::Dynamic ||
+            _settings.AdditionalVolumeMode == granite::AdditionalVolumeMode::Dynamic ||
+            _settings.ConstantsMode == granite::ConstantsMode::Dynamic)
         {
-            computeLoopGPU_<PYGRANITE_KERNEL_TEMPLATE_CALL>(
-                data,                                                                   //
-                alive,                                                                  //
-                USE_INTERPOLATE ? max_windfield_time : _settings.MaximumSimulationTime, //
-                counter,                                                                //
-                BLOCKS,                                                                 //
-                THREADS);
+            computeLoopGPU_<PYGRANITE_KERNEL_TEMPLATE_CALL>(data,               //
+                                                            alive,              //
+                                                            max_windfield_time, //
+                                                            counter,            //
+                                                            BLOCKS,             //
+                                                            THREADS);
             compute_gpu = std::thread();
         }
         else
         {
             compute_gpu = std::thread([&]() {
-                computeLoopGPU_<PYGRANITE_KERNEL_TEMPLATE_CALL>(
-                    data,                                                                   //
-                    alive,                                                                  //
-                    USE_INTERPOLATE ? max_windfield_time : _settings.MaximumSimulationTime, //
-                    counter,                                                                //
-                    BLOCKS,                                                                 //
-                    THREADS);
+                computeLoopGPU_<PYGRANITE_KERNEL_TEMPLATE_CALL>(data,                            //
+                                                                alive,                           //
+                                                                _settings.MaximumSimulationTime, //
+                                                                counter,                         //
+                                                                BLOCKS,                          //
+                                                                THREADS);
             });
         }
 
-        if ((!USE_INTERPOLATE || UPLIFT_MODE != granite::UpLiftMode::Off) && compute_gpu.joinable())
+        if (_settings.WindfieldMode == granite::WindfieldMode::Dynamic ||
+            _settings.UpLiftMode == granite::UpLiftMode::Dynamic ||
+            _settings.AdditionalVolumeMode == granite::AdditionalVolumeMode::Dynamic ||
+            _settings.ConstantsMode == granite::ConstantsMode::Dynamic)
         {
-            compute_gpu.join();
-        }
-
-        if (USE_INTERPOLATE)
-        {
-            if (_loader.hasNext())
+            if (_loader.step())
             {
-                MY_VLOG("LOADING NEXT WINDFIELD ...");
-                auto field = _loader.next();
-                MY_VLOG("LOADING NEXT WINDFIELD ... DONE");
-
-                if (compute_gpu.joinable()) compute_gpu.join();
+                updateData(_cache_index);
 
                 if (abort_due_alive) break;
-
-                MY_VLOG("ATTEMPTING TO BUFFER TEXTURE")
-                if (SPACE == Space::Space3D)
-                    loadTexture3D(_cache_index, field);
-                else
-                    loadTexture2D(_cache_index, field);
-                max_windfield_time += _settings.WindfieldTimeDistance;
+                max_windfield_time += _settings.DataTimeDistance;
 
                 // swap texture indices
                 MY_VLOG("SWAPPING TEXTURE INDICES")
@@ -864,18 +896,17 @@ void granite::TrajectoryIntegrator::computeLoop_(SimulationData<VEC_T> & data)
             }
             else
             {
-                compute_gpu.join();
+                if (compute_gpu.joinable()) compute_gpu.join();
                 break;
             }
         }
-
-    } while (USE_INTERPOLATE &&
+        if (compute_gpu.joinable()) compute_gpu.join();
+    } while (WINDFIELD_MODE == granite::WindfieldMode::Dynamic &&
              _simulation_counter < (_settings.MaximumSimulationTime / _settings.DeltaT));
 
     if (_settings.SaveInterval == 0)
         copyParticleInfo<VEC_T, CURVATURE_MODE, COMP_ADDITIONAL, COMP_ADDITIONAL_VOLUME>(data);
 
-    if (UPLIFT_MODE != granite::UpLiftMode::Off) cudaFree(data.Lift);
     cudaFree(number_alive_device);
 }
 
@@ -887,41 +918,59 @@ void granite::TrajectoryIntegrator::computeLoopGPU_(SimulationData<VEC_T> & data
                                                     const unsigned int BLOCKS,               //
                                                     const unsigned int THREADS)
 {
-    if (COMP_ADDITIONAL_VOLUME)
-    {
-        for (size_t i = 0; i < data.NumAdditionalVolumes; ++i)
-        {
-            data.AdditionalVolumes[i] = _additional_textures[i].Object;
-        }
-    }
-
     if (USE_TOPOGRAPHY)
     {
         data.Topography = _topography_texture.Object;
     }
 
+    data.TimeBack = COUNTER * _settings.DataTimeDistance;
+    data.TimeFront = (COUNTER + 1) * _settings.DataTimeDistance;
+
+    if (WINDFIELD_MODE == granite::WindfieldMode::Dynamic)
+    {
+        data.WindfieldBack[0] = _windfield_textures[_back_index][0].Object;
+        data.WindfieldBack[1] = _windfield_textures[_back_index][1].Object;
+        data.WindfieldBack[2] = _windfield_textures[_back_index][2].Object;
+
+        data.WindfieldFront[0] = _windfield_textures[_front_index][0].Object;
+        data.WindfieldFront[1] = _windfield_textures[_front_index][1].Object;
+        data.WindfieldFront[2] = _windfield_textures[_front_index][2].Object;
+    }
+
+    if (ADDITIONAL_VOLUME_MODE == granite::AdditionalVolumeMode::Dynamic)
+    {
+        for (size_t i = 0; i < data.NumAdditionalVolumes; ++i)
+        {
+            data.AdditionalVolumesBack[i] = _additional_textures[_back_index][i].Object;
+            data.AdditionalVolumesFront[i] = _additional_textures[_front_index][i].Object;
+        }
+    }
+
+    if (UPLIFT_MODE == granite::UpLiftMode::Dynamic)
+    {
+        data.LiftBack = reinterpret_cast<VEC_T *>(_uplift_device[_back_index]);
+        data.LiftFront = reinterpret_cast<VEC_T *>(_uplift_device[_front_index]);
+    }
+
+    if (CONSTANTS_MODE == granite::ConstantsMode::Dynamic)
+    {
+        for (size_t i = 0; i < _num_additional_constants; ++i)
+        {
+            data.ComputeDataBack[i] = _constants_device[_back_index][i];
+            data.ComputeDataFront[i] = _constants_device[_front_index][i];
+        }
+    }
+
+    MY_VLOG("Initializing computation loop.")
+
     while ( //
         _simulation_counter < (_settings.MaximumSimulationTime / _settings.DeltaT) &&
         (!_settings.MinimumAliveParticles || alive()))
     {
-        MY_VLOG("Initializing computation step.")
-
-        data.WindfieldBack[0] = _windfield_textures[_back_index][0].Object;
-        data.WindfieldBack[1] = _windfield_textures[_back_index][1].Object;
-        data.WindfieldBack[2] = _windfield_textures[_back_index][2].Object;
-        data.TimeBack = COUNTER * _settings.WindfieldTimeDistance;
 
         _particles_device.swap();
         data.FrontParticles = reinterpret_cast<VEC_T *>(_particles_device.front());
         data.BackParticles = reinterpret_cast<VEC_T *>(_particles_device.back());
-
-        if (USE_INTERPOLATE)
-        {
-            data.WindfieldFront[0] = _windfield_textures[_front_index][0].Object;
-            data.WindfieldFront[1] = _windfield_textures[_front_index][1].Object;
-            data.WindfieldFront[2] = _windfield_textures[_front_index][2].Object;
-            data.TimeFront = (COUNTER + 1) * _settings.WindfieldTimeDistance;
-        }
 
         integrate<PYGRANITE_KERNEL_TEMPLATE_CALL><<<BLOCKS, THREADS>>>(data);
 
@@ -933,12 +982,6 @@ void granite::TrajectoryIntegrator::computeLoopGPU_(SimulationData<VEC_T> & data
 
         data.Time += data.DeltaT;
         _simulation_counter++;
-
-        if (UPLIFT_MODE == granite::UpLiftMode::Dynamic)
-        {
-            MY_VLOG("ATTEMPTING TO LOAD LIFT DATA (DYNAMIC)");
-            loadLiftData(data);
-        }
 
         if (data.Time >= MAXIMUM_WINDFIELD_TIME) break;
     }
@@ -982,35 +1025,20 @@ void granite::TrajectoryIntegrator::copyParticleInfo(const SimulationData<VEC_T>
     {
         auto num{data.NumAdditionalVolumes};
 
-        size_t i = 0;
-        for (auto & p : _settings.AdditionalVolumes)
+        for (size_t i = 0; i < _keys.size(); ++i)
         {
             std::vector<float> step_data(data.NumParticles);
             cudaMemcpy(step_data.data(), data.ParticleVolumeInfo[i],
                        data.NumParticles * sizeof(float), cudaMemcpyDeviceToHost);
             MY_CUDA_ERROR_CHECK
             step_data.shrink_to_fit();
-            _set->_volume_data[p.first].push_back(step_data);
+            _set->_volume_data[_keys[i]].push_back(step_data);
             i++;
             if (i >= num) break;
         }
 
         _set->_num_additional_volumes = num;
     }
-}
-
-template <typename VEC_T>
-void granite::TrajectoryIntegrator::loadLiftData(SimulationData<VEC_T> & data)
-{
-    auto lift = _loader.uplift();
-    pybind11::buffer_info lift_buffer{lift.request()};
-
-    if (static_cast<size_t>(lift_buffer.shape[0]) != data.NumParticles)
-        MY_USER_ERROR("Lift has to provide the additional offset for each particle for "
-                      "each timestamp!");
-    VEC_T * lift_data{reinterpret_cast<VEC_T *>(lift_buffer.ptr)};
-    cudaMemcpy(data.Lift, lift_data, sizeof(VEC_T) * data.NumParticles, cudaMemcpyHostToDevice);
-    MY_CUDA_ERROR_CHECK
 }
 
 #endif

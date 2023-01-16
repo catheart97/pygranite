@@ -6,7 +6,7 @@ namespace granite
 /**
  * @brief Template for a X, Y, Z dimension type (Used for grid, domain, offset and scale)
  *
- * @author Ronja Schnur (catheart97@outlook.com)
+ * @author Ronja Schnur (ronjaschnur@uni-mainz.de)
  */
 template <typename value_t> struct Info
 {

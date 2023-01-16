@@ -10,8 +10,6 @@
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 
-#include <granite/ComputeLoader.hpp>
-
 namespace granite
 {
 
@@ -57,10 +55,30 @@ enum class UpLiftMode : uint32_t
     Dynamic = 2
 };
 
+enum class WindfieldMode : uint32_t
+{
+    Constant = 0,
+    Dynamic = 1
+};
+
+enum class ConstantsMode : uint32_t
+{
+    Off = 0,
+    Constant = 1,
+    Dynamic = 2
+};
+
+enum class AdditionalVolumeMode : uint32_t
+{
+    Off = 0,
+    Constant = 1,
+    Dynamic = 2
+};
+
 /**
  * @brief Settings class for @ref TrajectoryIntegrator.
  *
- * @author Ronja Schnur (catheart97@outlook.com)
+ * @author Ronja Schnur (ronjaschnur@uni-mainz.de)
  */
 struct IntegratorSettings
 {
@@ -80,7 +98,17 @@ public:
     // Determines if the simulation should interpolate between windfield timestamps or use
     // a fixed one (the first given).
     // (Default is true)
-    bool InterpolateWindfields{true};
+    // bool InterpolateWindfields{true};
+    granite::WindfieldMode WindfieldMode{granite::WindfieldMode::Dynamic};
+
+    // determines how the compute constants interpolation should operate
+    granite::ConstantsMode ConstantsMode{granite::ConstantsMode::Off};
+
+    // determines how the additional volume interpolation should operate
+    granite::AdditionalVolumeMode AdditionalVolumeMode{granite::AdditionalVolumeMode::Off};
+
+    // determines how the uplift should operate
+    granite::UpLiftMode UpLiftMode{granite::UpLiftMode::Off};
 
     // The integration delta used.
     // (Default is 1)
@@ -88,7 +116,7 @@ public:
 
     // The time that needs to pass between to following windfields.
     // (Default is 60)
-    float WindfieldTimeDistance{60};
+    float DataTimeDistance{60};
 
     // Defines the scale of the windfield data.
     // Must not match dimension although in 3D case 3 values are assumed
@@ -149,18 +177,8 @@ public:
     // If set, the algorithim will stop particles inside the provided topography. (Only 3D!)
     pybind11::array_t<float> Topography = pybind11::array_t<float>(0);
 
-    // If set, the algorithim will interpolate the value of the provided volume for each
-    // particle position.
-    std::unordered_map<std::string, pybind11::array_t<float>> AdditionalVolumes;
-
-    // maps the identifiers to the corresponding loader
-    std::unordered_map<std::string, ComputeLoader &> AdditionalConstants;
-
     // code that will be interpreted
     std::vector<std::string> AdditionalCompute;
-
-    // determines how th
-    granite::UpLiftMode UpLiftMode{granite::UpLiftMode::Off};
 };
 
 } // namespace granite

@@ -10,77 +10,7 @@ import glob
 import sys
 
 INCLUDES = """
-# define PY_ARRAY_UNIQUE_SYMBOL MAGSENSE_ARRAY_API
-# define NO_IMPORT_ARRAY
-
-# include <cmath>
-# include <cuda.h>
-
-# include "granite/IntegratorSettings.hpp"
-# include "granite/SimulationData.hpp"
-# include "granite/TrajectoryIntegrator.hpp"
-
-# define MY_USE_CUDA_TYPES
-# include "my/math/LinearAlgebra.hpp"
-# include "my/util/Util.cuh"
-
-# define KERNEL_3D(                                                                           \\
-            __integrator,                                                                     \\
-            __curvature_mode,                                                                 \\
-            __abort_mode,                                                                     \\
-            __uplift_mode,                                                                    \\
-            __use_interpolate,                                                                \\
-            __use_topography,                                                                 \\
-            __use_reverse_computation,                                                        \\
-            __comp_additional,                                                                \\
-            __comp_additional_volume                                                          \\
-            )                                                                                 \\
-        MY_VLOG("Kernel selected.");                                                          \\
-        compute_<                                                                             \\
-            my::math::Vec3,                                                                   \\
-            granite::Space::Space3D,                                                          \\
-            __integrator,                                                                     \\
-            granite::BorderMode::Block,                                                       \\
-            __curvature_mode,                                                                 \\
-            __abort_mode,                                                                     \\
-            __uplift_mode,                                                                    \\
-            __use_interpolate,                                                                \\
-            __use_topography,                                                                 \\
-            __use_reverse_computation,                                                        \\
-            false,                                                                            \\
-            __comp_additional,                                                                \\
-            __comp_additional_volume                                                          \\
-        >(_set->_trajectories3d);                                                             \\
-        return std::move(_set);
-
-# define KERNEL_2D(                                                                           \\
-            __integrator,                                                                     \\
-            __border_mode,                                                                    \\
-            __curvature_mode,                                                                 \\
-            __abort_mode,                                                                     \\
-            __use_interpolate,                                                                \\
-            __use_reverse_computation,                                                        \\
-            __use_sphere_coordinates,                                                         \\
-            __comp_additional,                                                                \\
-            __comp_additional_volume                                                          \\
-            )                                                                                 \\
-        MY_VLOG("Kernel selected.");                                                          \\
-        compute_<                                                                             \\
-            my::math::Vec2,                                                                   \\
-            Space::Space2D,                                                                   \\
-            __integrator,                                                                     \\
-            __border_mode,                                                                    \\
-            __curvature_mode,                                                                 \\
-            __abort_mode,                                                                     \\
-            granite::UpLiftMode::Off,                                                         \\
-            __use_interpolate,                                                                \\
-            false,                                                                            \\
-            __use_reverse_computation,                                                        \\
-            __use_sphere_coordinates,                                                         \\
-            __comp_additional,                                                                \\
-            __comp_additional_volume                                                          \\
-        >(_set->_trajectories2d);                                                             \\
-        return std::move(_set);
+#include "granite/TrajectoryIntegratorMacros.hpp"
 """
 
 
@@ -125,7 +55,7 @@ class KernelCall:
 
     def compile_files(self):
         result = []
-        PER_FILE = 256
+        PER_FILE = 4
 
         counter = 0
         code = ""
@@ -196,9 +126,19 @@ if __name__ == "__main__":
             "granite::UpLiftMode::Dynamic"
         ], "_settings.UpLiftMode"),
         KernelArgument([
-            "false",
-            "true"
-        ], "_settings.InterpolateWindfields"),
+            "granite::WindfieldMode::Constant",
+            "granite::WindfieldMode::Dynamic"
+        ], "_settings.WindfieldMode"),
+        KernelArgument([
+            "granite::ConstantsMode::Off",
+            "granite::ConstantsMode::Constant",
+            "granite::ConstantsMode::Dynamic"
+        ], "_settings.ConstantsMode"),
+        KernelArgument([
+            "granite::AdditionalVolumeMode::Off",
+            "granite::AdditionalVolumeMode::Constant",
+            "granite::AdditionalVolumeMode::Dynamic"
+        ], "_settings.AdditionalVolumeMode"),
         KernelArgument([
             "false",
             "true"
@@ -210,11 +150,7 @@ if __name__ == "__main__":
         KernelArgument([
             "false",
             "true"
-        ], "(_settings.AdditionalCompute.size() > 0)"),
-        KernelArgument([
-            "false",
-            "true"
-        ], "(_settings.AdditionalVolumes.size() > 0)")
+        ], "(_settings.AdditionalCompute.size() > 0)")
     ]
 
     if SHORT_VERSION:
@@ -243,9 +179,19 @@ if __name__ == "__main__":
             "granite::AbortMode::FitLength"
         ], "_settings.AbortMode"),
         KernelArgument([
-            "false", 
-            "true"
-        ], "_settings.InterpolateWindfields"),
+            "granite::WindfieldMode::Constant",
+            "granite::WindfieldMode::Dynamic"
+        ], "_settings.WindfieldMode"),
+        KernelArgument([
+            "granite::ConstantsMode::Off",
+            "granite::ConstantsMode::Constant",
+            "granite::ConstantsMode::Dynamic"
+        ], "_settings.ConstantsMode"),
+        KernelArgument([
+            "granite::AdditionalVolumeMode::Off",
+            "granite::AdditionalVolumeMode::Constant",
+            "granite::AdditionalVolumeMode::Dynamic"
+        ], "_settings.AdditionalVolumeMode"),
         KernelArgument([
             "false", 
             "true"
@@ -257,11 +203,7 @@ if __name__ == "__main__":
         KernelArgument([
             "false", 
             "true"
-        ], "(_settings.AdditionalCompute.size() > 0)"),
-        KernelArgument([
-            "false", 
-            "true"
-        ], "(_settings.AdditionalVolumes.size() > 0)")
+        ], "(_settings.AdditionalCompute.size() > 0)")
     ]
 
     if SHORT_VERSION:

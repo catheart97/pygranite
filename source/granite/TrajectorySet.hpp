@@ -22,12 +22,11 @@ namespace granite
 {
 
 class TrajectoryIntegrator;
-class CauchyGreenIntegrator;
 
 /**
  * @brief Class wrapping a set of particle trajectories (either 2D or 3D)
  *
- * @author Ronja Schnur (catheart97@outlook.com)
+ * @author Ronja Schnur (ronjaschnur@uni-mainz.de)
  */
 class TrajectorySet
 {
@@ -159,7 +158,6 @@ private:
 
     // additional declarations
     friend TrajectoryIntegrator;
-    friend CauchyGreenIntegrator;
 };
 
 } // namespace granite

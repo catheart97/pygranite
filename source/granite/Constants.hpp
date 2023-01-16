@@ -10,6 +10,6 @@ constexpr float ABORT_VALUE{1e-9};
 constexpr size_t MAX_ADDITIONAL_VOLUMES{8};
 constexpr size_t MAX_ADDITIONAL_COMPUTE{4};
 
-constexpr size_t NUM_CONSTANT_ADDITIONAL_COMPUTE{4};
+constexpr size_t MAX_CONSTANT_ADDITIONAL_COMPUTE{4};
 
 } // namespace granite

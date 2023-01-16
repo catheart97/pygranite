@@ -4,11 +4,9 @@
 #include <pybind11/numpy.h>
 
 #include "granite/IntegratorSettings.hpp"
-#include "granite/WindfieldLoader.hpp"
-#include "granite/ComputeLoader.hpp"
+#include "granite/DataLoader.hpp"
 #include "granite/TrajectoryIntegrator.hpp"
 #include "granite/TrajectorySet.hpp"
-#include "granite/CauchyGreenIntegrator.hpp"
 
 #ifdef PYGRANITE_TEST
 #include "test/Test.hpp"

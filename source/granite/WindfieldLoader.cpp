@@ -1,1 +1,0 @@
-#include "granite/WindfieldLoader.hpp"

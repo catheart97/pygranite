@@ -9,7 +9,7 @@ namespace granite
 /**
  * @brief This struct capsules texture information (3D and 2D)
  *
- * @author Ronja Schnur (catheart97@outlook.com)
+ * @author Ronja Schnur (ronjaschnur@uni-mainz.de)
  */
 struct TextureInfo
 {
