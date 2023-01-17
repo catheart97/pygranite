@@ -48,6 +48,10 @@ class KernelCall:
             return result
         else:
             id = self._count
+
+            if (args[0] == "false" and not "granite::ConstantsMode::Off" in args):
+                return ""
+
             self._count += 1
             self._calls.append(self._function_name +
                                "(" + ",".join(reversed(args)) + ")")
@@ -83,7 +87,7 @@ std::unique_ptr<granite::TrajectorySet> granite::TrajectoryIntegrator::compute_{
     def genMacro(self):
         code = ""
         for i, call in enumerate(self._calls):
-            code += f"std::unique_ptr<granite::TrajectorySet> compute_{self._function_name}_{i}();"
+            code += f"MY_NO_INLINE(std::unique_ptr<granite::TrajectorySet>) compute_{self._function_name}_{i}();"
             if i != len(self._calls) - 1:
                 code += "\\\n"
         return code
@@ -259,8 +263,16 @@ std::unique_ptr<granite::TrajectorySet> granite::TrajectoryIntegrator::compute2D
             f.write(c[1])
 
     with open(root + "/TrajectoryIntegratorKernelSelection.hpp", "w+") as f:
-        f.write("#pragma once\n#define PYGRANITE_KERNEL_SELECTION()\\\n" +
-                call_2D.genMacro() + "\\\n" + call_3D.genMacro())
+        f.write("""
+#pragma once
+
+#ifdef _WIN32
+#define MY_NO_INLINE(type) __declspec(noinline) type
+#else 
+#define MY_NO_INLINE(type) type __attribute__ ((noinline))
+#endif
+
+#define PYGRANITE_KERNEL_SELECTION()\\\n""" + call_2D.genMacro() + "\\\n" + call_3D.genMacro())
 
     print(call_3D.stat())
     print(call_2D.stat())

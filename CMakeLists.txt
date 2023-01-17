@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.12)
 project(pygranite LANGUAGES CXX)
 
 find_package(CUDA 11.2 REQUIRED)
@@ -14,10 +14,10 @@ set(CUDA_PROPAGATE_HOST_FLAGS ON)
 set(CMAKE_VERBOSE_MAKEFILE ON)
  
 add_definitions(-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION)
-find_package(PythonInterp 3.7 REQUIRED) 
-find_package(PythonLibs 3.7 REQUIRED)
+find_package(PythonInterp 3.6 REQUIRED) 
+find_package(PythonLibs 3.6 REQUIRED)
 
-option (CODEGEN_SHORTEN "Reduce compilation time by limiting the number of kernels! Only for build system tests!" OFF) 
+option (CODEGEN_SHORTEN "Reduce compilation time by limiting the number of kernels! Only for build system tests!" ON) 
 
 if (CODEGEN_SHORTEN)
     set (CODEGEN_ARG "1")
@@ -43,7 +43,7 @@ if (WIN32)
     set(CMAKE_CXX_FLAGS_DEBUG ${CMAKE_CXX_FLAGS})
     set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS}" "-Xcompiler /MD -Xcompiler /permissive -Xcompiler /MP8" )
 else ()
-    set(CMAKE_CXX_FLAGS "-O3")
+    set(CMAKE_CXX_FLAGS "-O3 -fvisibility=hidden")
     set(CMAKE_MAKE_PROGRAM "${CMAKE_MAKE_PROGRAM} -j${MULTITHREADED_BUILD}")
 endif()
 

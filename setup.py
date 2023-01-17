@@ -32,12 +32,10 @@ class CMakeBuild(build_ext):
         ]
 
         cfg = 'Debug' if self.debug else 'Release'
-        build_args = ['--config', cfg]
+        build_args = ['--config', cfg, '--parallel', '12']
 
         cmake_args += ['-DCMAKE_BUILD_TYPE=' + cfg]
-
-        if platform.system() == "Windows":
-            cmake_args += ['-G', 'Visual Studio 16 2019']
+        cmake_args += ['-G', 'Ninja']
 
         self.build_args = build_args
 
@@ -56,8 +54,6 @@ class CMakeBuild(build_ext):
 
         print('-'*10, 'Building extensions', '-'*40)
         cmake_cmd = ['cmake', '--build', '.'] + self.build_args
-        if platform.system() == "Windows":
-            cmake_cmd += ['--config', 'Release']
         print('*'*5, cmake_cmd)
         subprocess.check_call(cmake_cmd,
                               cwd=self.build_temp)
@@ -68,10 +64,6 @@ class CMakeBuild(build_ext):
 
     def move_output(self, ext, cfg):
         build_temp = Path(self.build_temp).resolve()
-
-        if platform.system() == "Windows":
-            build_temp = build_temp / cfg
-
         dest_path = Path(self.get_ext_fullpath(ext.name)).resolve()
         source_path = build_temp / self.get_ext_filename(ext.name)
         dest_directory = dest_path.parents[0]
