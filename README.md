@@ -24,3 +24,16 @@ Original Legacy Application (OpenGL):
 
 Python Library (CUDA) (Reimplementation):
 * **Ronja Schnur** - [catheart97](https://github.com/catheart97)
+
+## cite
+
+```bibtex
+@software{Schnur_pygranite_2019,
+    author = {Schnur, Ronja},
+    month = {8},
+    title = {{pygranite}},
+    url = {https://github.com/catheart97/pygranite},
+    version = {1.5.0},
+    year = {2022}
+}
+```
