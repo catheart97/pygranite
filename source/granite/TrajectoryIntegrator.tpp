@@ -195,7 +195,7 @@ __global__ void granite::integrate(SimulationData<VEC_T> data)
                         {
                             VEC_T k1c = interpolate(data, particle);
                             const VEC_T k1 = sphere_coordinates(data, particle.y, k1c);
-                            
+
                             VEC_T p = particle + k1 * (0.5f * data.DeltaT);
                             VEC_T k2c = interpolate(data, p);
                             const VEC_T k2 = sphere_coordinates(data, p.y, k2c);
@@ -234,12 +234,19 @@ __global__ void granite::integrate(SimulationData<VEC_T> data)
             VEC_T dp;
             if (UPLIFT_MODE != granite::UpLiftMode::Off)
             {
-                dp = v * data.DeltaT + my::math::lerp(data.LiftFront[pid], data.LiftBack[pid], t) *
-                                           (USE_REVERSE_COMPUTATION ? -1 : 1);
+                if (UPLIFT_MODE == granite::UpLiftMode::Constant)
+                {
+                    dp = v * data.DeltaT * (USE_REVERSE_COMPUTATION ? -1 : 1) + data.LiftBack[pid];
+                }
+                else
+                {
+                    dp = v * data.DeltaT * (USE_REVERSE_COMPUTATION ? -1 : 1) +
+                         my::math::lerp(data.LiftBack[pid], data.LiftFront[pid], t);
+                }
             }
             else
             {
-                dp = v * data.DeltaT;
+                dp = v * data.DeltaT * (USE_REVERSE_COMPUTATION ? -1 : 1);
             }
 
             AbortReason abort{AbortReason::Time};
@@ -636,7 +643,7 @@ void granite::TrajectoryIntegrator::compute_(std::vector<std::vector<VEC_T>> & t
 
     //// ! Initialize additional compute data
     MY_VLOG("SETTING UP ADDITIONAL COMPUTE ...")
-    
+
     if (COMP_ADDITIONAL)
     {
         // setup interpreter data

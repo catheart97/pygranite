@@ -139,7 +139,7 @@ public:
         IntegratorSettings & settings, //
         DataLoader & loader,           //
         TrajectorySet & set            //
-    ) : _loader{loader}
+    ) : _settings{settings}, _loader{loader}
     {
         initSet(set);
         initializeData();

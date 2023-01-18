@@ -181,8 +181,8 @@ void granite::TrajectoryIntegrator::initializeData()
             else
             {
                 loadTexture2D(_additional_textures[0][idx].Object,      //
-                              _additional_textures[0][idx].LinearArray,   //
-                              _additional_textures[0][idx].Pitch,   //
+                              _additional_textures[0][idx].LinearArray, //
+                              _additional_textures[0][idx].Pitch,       //
                               _additional_textures[0][idx].Initialized, //
                               field, false);
             }
@@ -221,15 +221,17 @@ void granite::TrajectoryIntegrator::initializeData()
 
             idx++;
         }
+
+        _num_additional_constants = idx;
     }
 
     if (_settings.UpLiftMode != granite::UpLiftMode::Off)
     {
         auto field = _loader.uplift();
-        if (field.size() != _set->numberTrajectories())
+        pybind11::buffer_info buffer{field.request()};
+        if (buffer.shape[0] != _set->numberTrajectories())
             MY_USER_ERROR("Uplift dimension does not match number of particles.")
 
-        pybind11::buffer_info buffer{field.request()};
         const size_t DIM = _settings.Space == granite::Space::Space2D ? 2 : 3;
 
         cudaMalloc(&_uplift_device[0], _set->numberTrajectories() * sizeof(float) * DIM);
@@ -245,15 +247,13 @@ void granite::TrajectoryIntegrator::initializeData()
     if ((_settings.WindfieldMode == granite::WindfieldMode::Dynamic ||
          _settings.UpLiftMode == granite::UpLiftMode::Dynamic ||
          _settings.AdditionalVolumeMode == granite::AdditionalVolumeMode::Dynamic ||
-         _settings.ConstantsMode == granite::ConstantsMode::Dynamic) &&
-        !_loader.step()) 
+         _settings.ConstantsMode == granite::ConstantsMode::Dynamic))
     {
-        MY_USER_ERROR("Cannot increment loader.");
+        if (_loader.step())
+            updateData(1);
+        else
+            MY_USER_ERROR("Cannot increment loader.");
     }
-    else
-        return;
-
-    updateData(1);
 
     MY_VLOG("INITIALIZING DATA ... DONE")
 }
@@ -292,8 +292,8 @@ void granite::TrajectoryIntegrator::updateData(size_t index)
             else
             {
                 loadTexture2D(_additional_textures[index][idx].Object,      //
-                              _additional_textures[index][idx].LinearArray,   //
-                              _additional_textures[index][idx].Pitch,   //
+                              _additional_textures[index][idx].LinearArray, //
+                              _additional_textures[index][idx].Pitch,       //
                               _additional_textures[index][idx].Initialized, //
                               field, false);
             }
@@ -339,10 +339,10 @@ void granite::TrajectoryIntegrator::updateData(size_t index)
     if (_settings.UpLiftMode == granite::UpLiftMode::Dynamic)
     {
         auto field = _loader.uplift();
-        if (field.size() != _set->numberTrajectories())
+        pybind11::buffer_info buffer{field.request()};
+        if (buffer.shape[0] != _set->numberTrajectories())
             MY_USER_ERROR("Uplift dimension does not match number of particles.")
 
-        pybind11::buffer_info buffer{field.request()};
         const size_t DIM = _settings.Space == granite::Space::Space2D ? 2 : 3;
 
         if (!_uplift_device[index])

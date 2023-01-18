@@ -59,7 +59,7 @@ class KernelCall:
 
     def compile_files(self):
         result = []
-        PER_FILE = 4
+        PER_FILE = 128
 
         counter = 0
         code = ""

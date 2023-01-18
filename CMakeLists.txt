@@ -82,12 +82,12 @@ file(GLOB TRAJECTORY_INTEGRATOR_COMPUTE_CU_FILES
      ${PROJECT_SOURCE_DIR}/source/granite/TrajectoryIntegratorCompute/*.cu)
 
 set(SOURCES
-    ${TRAJECTORY_INTEGRATOR_COMPUTE_CU_FILES}
+    source/pygranite.cpp
     source/granite/TrajectoryIntegrator.cpp
     source/granite/DataLoader.cpp
     source/granite/TrajectorySet.cpp
     source/granite/TrajectoryIntegratorCompute.cpp
-    source/pygranite.cpp
+    ${TRAJECTORY_INTEGRATOR_COMPUTE_CU_FILES}
 )
 
 cuda_add_library(pygranite SHARED ${SOURCES})

@@ -5,6 +5,7 @@ import os
 import platform
 import subprocess
 import sys
+import multiprocessing
 
 from distutils.core import setup
 from pathlib import Path
@@ -32,10 +33,8 @@ class CMakeBuild(build_ext):
         ]
 
         cfg = 'Debug' if self.debug else 'Release'
-        build_args = ['--config', cfg, '--parallel', '12']
-
-        cmake_args += ['-DCMAKE_BUILD_TYPE=' + cfg]
-        cmake_args += ['-G', 'Ninja']
+        build_args = ['--config', cfg, '--parallel', str(multiprocessing.cpu_count())]
+        cmake_args += ['-DCMAKE_BUILD_TYPE=' + cfg, '-G', 'Ninja']
 
         self.build_args = build_args
 
