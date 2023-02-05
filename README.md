@@ -18,12 +18,9 @@ On the [wiki pages](https://github.com/catheart97/pygranite/wiki) you can find t
 
 ## acknowlegements
 
-Original Legacy Application (OpenGL):
+Original Legacy Application (OpenGL/Deprecated):
 * **Rainer Erbes** - *Inital work* 
 * **Tobias Kremer** - *Improvement* - [tbkr](https://github.com/tbkr)
-
-Python Library (CUDA) (Reimplementation):
-* **Ronja Schnur** - [catheart97](https://github.com/catheart97)
 
 ## cite
 
