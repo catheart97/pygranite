@@ -27,6 +27,8 @@ Python Library (CUDA) (Reimplementation):
 
 ## cite
 
+If you find this repository helpful in your work, feel free to give it a :star:.
+
 ```bibtex
 @software{Schnur_pygranite_2019,
     author = {Schnur, Ronja},
